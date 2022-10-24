@@ -116,6 +116,7 @@
             // 
             // btn_generate
             // 
+            this.btn_generate.Cursor = System.Windows.Forms.Cursors.Hand;
             this.btn_generate.Enabled = false;
             this.btn_generate.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btn_generate.ForeColor = System.Drawing.SystemColors.Highlight;

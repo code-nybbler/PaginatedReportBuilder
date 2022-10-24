@@ -872,6 +872,7 @@ namespace PaginatedReportGenerator
                     foreach (XElement column in columnList)
                     {
                         cellWidth = Double.Parse(column.Attribute("width").Value.Replace("%", ""))/100.0 * bodyWidth;
+                        
                         sectionList = column.Descendants("section").ToList();
                         foreach (XElement section in sectionList)
                         {
@@ -890,68 +891,75 @@ namespace PaginatedReportGenerator
                             {
                                 itemAdded = false;
                                 leftOffset = 0;
+                                cellWidth = Double.Parse(column.Attribute("width").Value.Replace("%", "")) / 100.0 * bodyWidth;
+
                                 cellList = row.Descendants("cell").ToList();
-                                foreach (XElement cell in cellList)
+                                if (cellList.Count > 0)
                                 {
-                                    itemAdded = false;
-                                    if (cell.Descendants("control").Where(x => x.Attribute("indicationOfSubgrid") == null).ToList().Count > 0)
+                                    cellWidth /= cellList.Count;
+
+                                    foreach (XElement cell in cellList)
                                     {
-                                        itemHeight = cellHeight;
-                                        // create text box
-                                        txtLabel = cell.Element("labels").Element("label").Attribute("description").Value;
-                                        txtValue = $"=\"&lt;b&gt;{txtLabel}:&lt;/b&gt; \" + First(Fields!{cell.Element("control").Attribute("id").Value}.Value, \"{entitySelected}\")";
-
-                                        reportCell = BuildTextBox(txtLabel, txtValue, topOffset, leftOffset, cellWidth, 10, cellHeight);
-                                        reportTabElements.Add(reportCell);
-                                        textBoxIndex++;
-
-                                        itemAdded = true;
-                                    }
-                                    else if (cell.Descendants("control").ToList().Count > 0)
-                                    {
-                                        controlId = "";
-                                        if (cell.Element("control").Attribute("uniqueid") != null)
+                                        itemAdded = false;
+                                        if (cell.Descendants("control").Where(x => x.Attribute("indicationOfSubgrid") == null).ToList().Count > 0)
                                         {
-                                            controlId = cell.Element("control").Attribute("uniqueid").Value;
-                                        }
+                                            itemHeight = cellHeight;
+                                            // create text box
+                                            txtLabel = cell.Element("labels").Element("label").Attribute("description").Value;
+                                            txtValue = $"=\"&lt;b&gt;{txtLabel}:&lt;/b&gt; \" + First(Fields!{cell.Element("control").Attribute("id").Value}.Value, \"{entitySelected}\")";
 
-                                        if (controlId == "" || formDoc.Descendants("controlDescription").Where(x => x.Attribute("forControl").Value == controlId).ToList().Count == 0)
-                                        {
-                                            targetEntity = cell.Element("control").Element("parameters").Element("TargetEntityType").Value;
-                                            viewId = cell.Element("control").Element("parameters").Element("ViewId").Value;
-
-                                            viewMeta = GetViewFields(viewId);
-                                            viewFields = viewMeta.fields;
-                                            viewFieldsXml = BuildDatasetFieldsXml(targetEntity, viewFields);
-
-                                            string relationship = cell.Element("control").Element("parameters").Element("RelationshipName").Value;
-                                            
-                                            // pass entire view fetch to preserve filters
-                                            dataset = BuildDataset(targetEntity, null, viewFieldsXml, relationship, viewMeta.fetchxml);
-                                            datasets.Add(dataset);
-
-                                            // create title box and table
-                                            if (cell.Attribute("showlabel").Value == "true")
-                                            {
-                                                topOffset += cellHeight;
-                                                txtValue = cell.Element("labels").Element("label").Attribute("description").Value;
-                                                reportCell = BuildTextBox("", txtValue, topOffset, leftOffset, cellWidth, 15, titleHeight);
-                                                reportTabElements.Add(reportCell);
-                                                textBoxIndex++;
-                                                topOffset += titleHeight;
-                                            }
-
-                                            itemHeight = cellHeight * 2;
-                                            reportTable = BuildTable(targetEntity, viewFields, topOffset, leftOffset, cellWidth);
-                                            reportTabElements.Add(reportTable);
-                                            tableIndex++;
+                                            reportCell = BuildTextBox(txtLabel, txtValue, topOffset, leftOffset, cellWidth, 10, cellHeight);
+                                            reportTabElements.Add(reportCell);
+                                            textBoxIndex++;
 
                                             itemAdded = true;
                                         }
+                                        else if (cell.Descendants("control").ToList().Count > 0)
+                                        {
+                                            controlId = "";
+                                            if (cell.Element("control").Attribute("uniqueid") != null)
+                                            {
+                                                controlId = cell.Element("control").Attribute("uniqueid").Value;
+                                            }
+
+                                            if (controlId == "" || formDoc.Descendants("controlDescription").Where(x => x.Attribute("forControl").Value == controlId).ToList().Count == 0)
+                                            {
+                                                targetEntity = cell.Element("control").Element("parameters").Element("TargetEntityType").Value;
+                                                viewId = cell.Element("control").Element("parameters").Element("ViewId").Value;
+
+                                                viewMeta = GetViewFields(viewId);
+                                                viewFields = viewMeta.fields;
+                                                viewFieldsXml = BuildDatasetFieldsXml(targetEntity, viewFields);
+
+                                                string relationship = cell.Element("control").Element("parameters").Element("RelationshipName").Value;
+
+                                                // pass entire view fetch to preserve filters
+                                                dataset = BuildDataset(targetEntity, null, viewFieldsXml, relationship, viewMeta.fetchxml);
+                                                datasets.Add(dataset);
+
+                                                // create title box and table
+                                                if (cell.Attribute("showlabel").Value == "true")
+                                                {
+                                                    topOffset += cellHeight;
+                                                    txtValue = cell.Element("labels").Element("label").Attribute("description").Value;
+                                                    reportCell = BuildTextBox("", txtValue, topOffset, leftOffset, cellWidth, 15, titleHeight);
+                                                    reportTabElements.Add(reportCell);
+                                                    textBoxIndex++;
+                                                    topOffset += titleHeight;
+                                                }
+
+                                                itemHeight = cellHeight * 2;
+                                                reportTable = BuildTable(targetEntity, viewFields, topOffset, leftOffset, cellWidth);
+                                                reportTabElements.Add(reportTable);
+                                                tableIndex++;
+
+                                                itemAdded = true;
+                                            }
+                                        }
+                                        if (itemAdded == true) leftOffset += cellWidth;
                                     }
-                                    if (itemAdded == true) leftOffset += cellWidth;
+                                    if (itemAdded == true) topOffset += itemHeight;
                                 }
-                                if (itemAdded == true) topOffset += itemHeight;
                             }
                         }
                     }
