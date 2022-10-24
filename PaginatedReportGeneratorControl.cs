@@ -38,7 +38,7 @@ namespace PaginatedReportGenerator
         private EntityCollection solutions;
         private List<EntityMetadata> entities;
         private string dataSource;
-        List<string> datasets;
+        List<DatasetMeta> datasets;
         private double bodyHeight = 9, bodyWidth = 6.5, titleHeight = .5, cellHeight = .225;
         private int textBoxIndex, tableIndex;
         private string entitySelected;
@@ -362,9 +362,9 @@ namespace PaginatedReportGenerator
                 List<string> fields = GetFormFields();
                 List<string> fieldsXml = BuildDatasetFieldsXml(entitySelected, fields);
 
-                datasets = new List<string>();
+                datasets = new List<DatasetMeta>();
                 // add main prefiltered dataset
-                string dataset1 = BuildDataset(entitySelected, fields, fieldsXml, null, null);
+                DatasetMeta dataset1 = BuildDataset(entitySelected, fields, fieldsXml, null, null);
                 datasets.Add(dataset1);
 
                 List<string> parameters = BuildParameters();
@@ -403,7 +403,7 @@ namespace PaginatedReportGenerator
                                 </DataSource>
                             </DataSources>
                             <DataSets>
-                                {String.Join("\n", datasets.ToArray())}
+                                {String.Join("\n", datasets.Select(x => x.fetchxml).ToArray())}
                             </DataSets>
                             <ReportSections>
                                 <ReportSection>
@@ -531,7 +531,7 @@ namespace PaginatedReportGenerator
             return new ViewMeta(fieldNames, viewDoc);
         }
 
-        private string BuildDataset(string entity, List<string> fields, List<string> fieldsXml, string relationship, XDocument viewFetchXml)
+        private DatasetMeta BuildDataset(string entity, List<string> fields, List<string> fieldsXml, string relationship, XDocument viewFetchXml)
         {
             string parameters = "", fetchXml;
 
@@ -550,7 +550,7 @@ namespace PaginatedReportGenerator
 
                     if (relToPrimary != null && viewFetchXml.Descendants("link-entity").Where(x => x.Attribute("name").Value.ToString() == entitySelected).ToList().Count == 0)
                     {
-                        string linkedEntity = $"\n    <link-entity name=\"{entitySelected}\" alias=\"aa\" link-type=\"inner\" from=\"{relToPrimary.ReferencingAttribute}\" to=\"{entitySelected}id\" enableprefiltering=\"1\">\n\n        <attribute name=\"{entitySelected}id\" />\n\n</link-entity>\n\n";
+                        string linkedEntity = $"\n    <link-entity name=\"{entitySelected}\" alias=\"aa\" link-type=\"inner\" from=\"{entitySelected}id\" to=\"{relToPrimary.ReferencingAttribute}\" enableprefiltering=\"1\">\n\n        <attribute name=\"{entitySelected}id\" />\n\n</link-entity>\n\n";
 
                         viewFetchXml.Descendants("entity").First().Add(linkedEntity); // add prefiltered link back to main entity
                     }
@@ -577,9 +577,16 @@ namespace PaginatedReportGenerator
                                 </QueryParameters>";
 
                 fetchXml = response.FetchXml.Replace($"entity name=\"{entity}\"", $"entity name=\"{entity}\" enableprefiltering=\"1\"");
-            }           
+            }
 
-            string dataset = $@"<DataSet Name=""{entity}"">
+            string name = entity;
+            int nameIdx = 2;
+            while (datasets.Where(x => x.name == name).ToList().Count > 0)
+            {
+                name = entity + nameIdx++;
+            }
+
+            string datasetFetchXml = $@"<DataSet Name=""{entity}"">
                                     <Query>
                                         <DataSourceName>{dataSource}</DataSourceName>
                                         {parameters}
@@ -590,20 +597,31 @@ namespace PaginatedReportGenerator
                                     </Fields>
                                 </DataSet>";
 
-            return dataset;
+            return new DatasetMeta(name, datasetFetchXml);
         }
 
         private List<string> GetFormFields()
         {
-            var controlList = formDoc.Descendants("control").Where(x => x.Attribute("indicationOfSubgrid") == null).ToList();
+            var controlList = formDoc.Descendants("control").Where(x => x.Attribute("indicationOfSubgrid") == null && x.Descendants("QuickForms").ToList().Count == 0).ToList();
             var fieldList = new List<string>();
-            string field;
-            foreach (var control in controlList)
+
+            RetrieveEntityRequest req = new RetrieveEntityRequest()
             {
-                field = control.Attribute("id").Value.Replace("header_", "");
-                if (!fieldList.Contains(field))
+                EntityFilters = EntityFilters.Attributes,
+                LogicalName = entitySelected
+            };
+            EntityMetadata entitymeta = (Service.Execute(req) as RetrieveEntityResponse).EntityMetadata;
+
+            if (entitymeta != null) {
+                string field;
+                foreach (var control in controlList)
                 {
-                    fieldList.Add(field);
+                    field = control.Attribute("id").Value.Replace("header_", "");
+                    if (!fieldList.Contains(field) && 
+                        entitymeta.Attributes.Where(x => x.LogicalName == field).ToList().Count > 0) // check if real field (could be a web resource)
+                    {
+                        fieldList.Add(field);
+                    }
                 }
             }
 
@@ -760,7 +778,7 @@ namespace PaginatedReportGenerator
             return cell;
         }
 
-        private string BuildTable(string entity, List<string> viewFields, double top, double left, double width)
+        private string BuildTable(string entity, List<string> viewFields, double top, double left, double width, string datasetName)
         {
             string columns = "", members = "", headerColumns = "", bodyColumns = "";
             double colWidth = width / (viewFields.Count-1); // subtract 1 to account for unique identifier column
@@ -818,7 +836,7 @@ namespace PaginatedReportGenerator
                       <KeepWithGroup>After</KeepWithGroup>
                     </TablixMember>
                     <TablixMember>
-                      <Group Name=""{entity}_details"">
+                      <Group Name=""{datasetName}_details"">
                         <GroupExpressions>
                           <GroupExpression>=Fields!{entity}id.Value</GroupExpression>
                         </GroupExpressions>
@@ -826,7 +844,7 @@ namespace PaginatedReportGenerator
                     </TablixMember>
                   </TablixMembers>
                 </TablixRowHierarchy>
-                <DataSetName>{entity}</DataSetName>
+                <DataSetName>{datasetName}</DataSetName>
                 <Top>{top}in</Top>
                 <Left>{left}in</Left>
                 <Height>0.5in</Height>
@@ -853,6 +871,7 @@ namespace PaginatedReportGenerator
             List<XElement> columnList, sectionList, rowList, cellList;
 
             ViewMeta viewMeta;
+            DatasetMeta datasetMeta;
             string page, title, reportCell, reportTable, targetEntity, viewId, dataset, controlId, txtLabel, txtValue, pageBreak;
             int tabIndex = 1;
             double tabTopOffset = 0.0, topOffset = 0.0, leftOffset, cellWidth, itemHeight = cellHeight;
@@ -871,7 +890,7 @@ namespace PaginatedReportGenerator
                     columnList = tab.Descendants("column").ToList();
                     foreach (XElement column in columnList)
                     {
-                        cellWidth = Double.Parse(column.Attribute("width").Value.Replace("%", ""))/100.0 * bodyWidth;
+                        cellWidth = bodyWidth; // Double.Parse(column.Attribute("width").Value.Replace("%", ""))/100.0 * bodyWidth;
                         
                         sectionList = column.Descendants("section").ToList();
                         foreach (XElement section in sectionList)
@@ -891,12 +910,12 @@ namespace PaginatedReportGenerator
                             {
                                 itemAdded = false;
                                 leftOffset = 0;
-                                cellWidth = Double.Parse(column.Attribute("width").Value.Replace("%", "")) / 100.0 * bodyWidth;
+                                //cellWidth = Double.Parse(column.Attribute("width").Value.Replace("%", "")) / 100.0 * bodyWidth;
 
-                                cellList = row.Descendants("cell").ToList();
+                                cellList = row.Descendants("cell").Where(x => x.Descendants("QuickForms").ToList().Count == 0).ToList();
                                 if (cellList.Count > 0)
                                 {
-                                    cellWidth /= cellList.Count;
+                                    cellWidth = bodyWidth / cellList.Count;
 
                                     foreach (XElement cell in cellList)
                                     {
@@ -934,26 +953,29 @@ namespace PaginatedReportGenerator
                                                 string relationship = cell.Element("control").Element("parameters").Element("RelationshipName").Value;
 
                                                 // pass entire view fetch to preserve filters
-                                                dataset = BuildDataset(targetEntity, null, viewFieldsXml, relationship, viewMeta.fetchxml);
-                                                datasets.Add(dataset);
-
-                                                // create title box and table
-                                                if (cell.Attribute("showlabel").Value == "true")
+                                                datasetMeta = BuildDataset(targetEntity, null, viewFieldsXml, relationship, viewMeta.fetchxml);
+                                                if (datasetMeta != null)
                                                 {
-                                                    topOffset += cellHeight;
-                                                    txtValue = cell.Element("labels").Element("label").Attribute("description").Value;
-                                                    reportCell = BuildTextBox("", txtValue, topOffset, leftOffset, cellWidth, 15, titleHeight);
-                                                    reportTabElements.Add(reportCell);
-                                                    textBoxIndex++;
-                                                    topOffset += titleHeight;
+                                                    datasets.Add(datasetMeta);                                                
+
+                                                    // create title box and table
+                                                    if (cell.Attribute("showlabel").Value == "true")
+                                                    {
+                                                        topOffset += cellHeight;
+                                                        txtValue = cell.Element("labels").Element("label").Attribute("description").Value;
+                                                        reportCell = BuildTextBox("", txtValue, topOffset, leftOffset, cellWidth, 15, titleHeight);
+                                                        reportTabElements.Add(reportCell);
+                                                        textBoxIndex++;
+                                                        topOffset += titleHeight;
+                                                    }
+
+                                                    itemHeight = cellHeight * 2;
+                                                    reportTable = BuildTable(targetEntity, viewFields, topOffset, leftOffset, cellWidth, datasetMeta.name);
+                                                    reportTabElements.Add(reportTable);
+                                                    tableIndex++;
+
+                                                    itemAdded = true;
                                                 }
-
-                                                itemHeight = cellHeight * 2;
-                                                reportTable = BuildTable(targetEntity, viewFields, topOffset, leftOffset, cellWidth);
-                                                reportTabElements.Add(reportTable);
-                                                tableIndex++;
-
-                                                itemAdded = true;
                                             }
                                         }
                                         if (itemAdded == true) leftOffset += cellWidth;
