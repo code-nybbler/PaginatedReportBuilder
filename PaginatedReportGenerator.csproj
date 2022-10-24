@@ -206,7 +206,9 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Build.cs" />
     <Compile Include="DatasetMeta.cs" />
+    <Compile Include="Get.cs" />
     <Compile Include="PaginatedReportGenerator.cs" />
     <Compile Include="PaginatedReportGeneratorControl.cs">
       <SubType>UserControl</SubType>

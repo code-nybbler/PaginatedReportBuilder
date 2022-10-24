@@ -3,7 +3,7 @@ using System.Xml.Linq;
 
 namespace PaginatedReportGenerator
 {
-    internal class ViewMeta
+    public class ViewMeta
     {
         public List<string> fields;
         public XDocument fetchxml;

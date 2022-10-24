@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace PaginatedReportGenerator
 {
-    internal class DatasetMeta
+    public class DatasetMeta
     {
         public string name;
         public string fetchxml;
