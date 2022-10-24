@@ -16,8 +16,10 @@ using System.Data.Common;
 using System.Drawing;
 using System.IO;
 using System.Linq;
+using System.ServiceModel;
 using System.Text;
 using System.Threading.Tasks;
+using System.Web.Services.Description;
 using System.Web.UI;
 using System.Web.UI.WebControls;
 using System.Windows.Controls;
@@ -32,8 +34,10 @@ namespace PaginatedReportGenerator
     public partial class PaginatedReportGeneratorControl : PluginControlBase
     {
         private Settings mySettings;
-        private List<EntityMetadata> entities;
         private List<Entity> forms;
+        private EntityCollection solutions;
+        private List<EntityMetadata> entities;
+        private string dataSource;
         List<string> datasets;
         private double bodyHeight = 9, bodyWidth = 6.5, titleHeight = .5, cellHeight = .225;
         private int textBoxIndex, tableIndex;
@@ -99,28 +103,96 @@ namespace PaginatedReportGenerator
             return new Uri(uriString);
         }
 
-        private void btn_loadentities_Click(object sender, EventArgs e)
+        private void btn_loadSolutions_Click(object sender, EventArgs e)
         {
-            LoadEntities();
+            box_solutionSelect.Items.Clear();
+
+            WorkAsync(new WorkAsyncInfo
+            {
+                Message = "Retrieving solutions...",
+                Work = (w, e2) =>
+                {
+                    // This code is executed in another thread
+                    solutions = RetrieveSolutions();
+
+                    w.ReportProgress(-1, "Solutions loaded.");
+                    e2.Result = 1;
+                },
+                ProgressChanged = e2 =>
+                {
+                    SetWorkingMessage(e2.UserState.ToString());
+                },
+                PostWorkCallBack = e2 =>
+                {
+                    // This code is executed in the main thread
+                    foreach (var entity in solutions.Entities)
+                    {
+                        box_solutionSelect.Items.Add(entity["friendlyname"]);
+                    }
+
+                    box_solutionSelect.Enabled = true;
+                },
+                AsyncArgument = null,
+                // Progress information panel size
+                MessageWidth = 340,
+                MessageHeight = 150
+            });            
+        }
+
+        private void box_solutionSelect_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            box_entitySelect.Items.Clear();
+            lst_forms.Items.Clear();
+
+            RetrieveEntities(box_solutionSelect.SelectedItem.ToString());
+        }
+
+        public EntityCollection RetrieveSolutions()
+        {
+            QueryExpression query = new QueryExpression
+            {
+                EntityName = "solution",
+                ColumnSet = new ColumnSet(true),
+                Criteria = {
+                    Conditions = {
+                        new ConditionExpression("ismanaged", ConditionOperator.Equal, false)
+                    },
+                }
+            };
+
+            RetrieveMultipleRequest request = new RetrieveMultipleRequest();
+            request.Query = query;
+            try
+            {
+                RetrieveMultipleResponse response = (RetrieveMultipleResponse)Service.Execute(request);
+                EntityCollection results = response.EntityCollection;
+                return results;
+            }
+            catch (FaultException<OrganizationServiceFault> ex)
+            {
+                throw new Exception(ex.Message);
+            }
         }
 
         private void disableInputs()
         {
+            box_solutionSelect.Enabled = false;
             box_entitySelect.Enabled = false;
             lst_forms.Enabled = false;
-            btn_loadentities.Enabled = false;
             btn_generate.Enabled = false;
+            btn_download.Enabled = false;
         }
 
         private void enableInputs()
         {
+            box_solutionSelect.Enabled = true;
             box_entitySelect.Enabled = true;
             lst_forms.Enabled = true;
-            btn_loadentities.Enabled = true;
             btn_generate.Enabled = true;
+            btn_download.Enabled = true;
         }
 
-        private void LoadEntities()
+        private void RetrieveEntities(string SolutionUniqueName)
         {
             WorkAsync(new WorkAsyncInfo
             {
@@ -128,7 +200,7 @@ namespace PaginatedReportGenerator
                 Work = (w, e) =>
                 {
                     // This code is executed in another thread
-                    entities = GetAllEntityMetadata();                    
+                    entities = GetSolutionEntities(SolutionUniqueName);                    
 
                     w.ReportProgress(-1, "Entities loaded.");
                     e.Result = 1;
@@ -154,19 +226,36 @@ namespace PaginatedReportGenerator
             });
         }
 
-        private List<EntityMetadata> GetAllEntityMetadata()
+        public List<EntityMetadata> GetSolutionEntities(string SolutionUniqueName)
         {
-            var request = new RetrieveAllEntitiesRequest
+            // get solution components for solution unique name
+            QueryExpression componentsQuery = new QueryExpression
             {
-                EntityFilters = EntityFilters.All
+                EntityName = "solutioncomponent",
+                ColumnSet = new ColumnSet("objectid"),
+                Criteria = new FilterExpression(),
             };
-
-            var response = (RetrieveAllEntitiesResponse)Service.Execute(request);
-            return response.EntityMetadata.ToList();
-        }        
+            LinkEntity solutionLink = new LinkEntity("solutioncomponent", "solution", "solutionid", "solutionid", JoinOperator.Inner);
+            solutionLink.LinkCriteria = new FilterExpression();
+            solutionLink.LinkCriteria.AddCondition(new ConditionExpression("uniquename", ConditionOperator.Equal, SolutionUniqueName));
+            componentsQuery.LinkEntities.Add(solutionLink);
+            componentsQuery.Criteria.AddCondition(new ConditionExpression("componenttype", ConditionOperator.Equal, 1));
+            EntityCollection ComponentsResult = Service.RetrieveMultiple(componentsQuery);
+            //Get all entities
+            RetrieveAllEntitiesRequest AllEntitiesrequest = new RetrieveAllEntitiesRequest()
+            {
+                EntityFilters = EntityFilters.Entity | Microsoft.Xrm.Sdk.Metadata.EntityFilters.Attributes,
+                RetrieveAsIfPublished = true
+            };
+            RetrieveAllEntitiesResponse AllEntitiesresponse = (RetrieveAllEntitiesResponse)Service.Execute(AllEntitiesrequest);
+            //Join entities Id and solution Components Id 
+            return AllEntitiesresponse.EntityMetadata.Join(ComponentsResult.Entities.Select(x => x.Attributes["objectid"]), x => x.MetadataId, y => y, (x, y) => x).ToList();
+        }
 
         private void box_entitySelect_SelectedIndexChanged(object sender, EventArgs e)
         {
+            lst_forms.Items.Clear();
+
             PopulateFormsList();
         }
 
@@ -197,9 +286,14 @@ namespace PaginatedReportGenerator
 
         private void lst_forms_SelectedIndexChanged(object sender, EventArgs e)
         {
+            txt_formxml.Text = "";
+            txt_reportxml.Text = "";
+            btn_download.Enabled = false;
+
             string formXml = forms.Find(x => x["name"].ToString() == lst_forms.SelectedItem.ToString())["formxml"].ToString();
             var formDoc = XDocument.Parse(formXml);
             txt_formxml.Text = formDoc.ToString();
+            btn_generate.Enabled = true;
         }
 
         private void btn_generate_Click(object sender, EventArgs e)
@@ -258,7 +352,12 @@ namespace PaginatedReportGenerator
         {
             try
             {
-                formDoc = XDocument.Parse(formXml);                
+                string connectString = GetOrganizationUrl().ToString();
+                int startIdx = connectString.IndexOf("https://") + ("https://").Length;
+                int endIdx = connectString.IndexOf(".crm");
+                dataSource = connectString.Substring(startIdx, endIdx - startIdx);
+
+                formDoc = XDocument.Parse(formXml);
 
                 List<string> fields = GetFormFields();
                 List<string> fieldsXml = BuildDatasetFieldsXml(entitySelected, fields);
@@ -271,15 +370,33 @@ namespace PaginatedReportGenerator
                 List<string> parameters = BuildParameters();
                 List<string> pages = BuildReportItems(formXml);
 
+                // create header
+                List<XElement> headerFields = formDoc.Descendants("cell").Where(x => x.Descendants("control").Where(y => y.Attribute("id").Value.Contains("header_")).ToList().Count > 0).ToList();
+                List<string> reportHeaderXml = new List<string>();
+                string txtLabel, txtValue, reportCell;
+                double cellWidth = bodyWidth / headerFields.Count;
+                double leftOffset = 0;
+                foreach (XElement cell in headerFields)
+                {
+                    // create text box
+                    txtLabel = cell.Element("labels").Element("label").Attribute("description").Value;
+                    txtValue = $"=\"&lt;b&gt;{txtLabel}:&lt;/b&gt; \" + First(Fields!{cell.Element("control").Attribute("id").Value.Replace("header_", "")}.Value, \"{entitySelected}\")";
+
+                    reportCell = BuildTextBox(txtLabel, txtValue, 0, leftOffset, cellWidth, 10, cellHeight);
+                    reportHeaderXml.Add(reportCell);
+                    textBoxIndex++;
+                    leftOffset += cellWidth;
+                }
+
                 string reportXml = $@"<?xml version=""1.0"" encoding=""utf-8""?>
                         <Report MustUnderstand=""df"" xmlns=""http://schemas.microsoft.com/sqlserver/reporting/2016/01/reportdefinition"" xmlns:rd=""http://schemas.microsoft.com/SQLServer/reporting/reportdesigner"" xmlns:df=""http://schemas.microsoft.com/sqlserver/reporting/2016/01/reportdefinition/defaultfontfamily"">
                             <df:DefaultFontFamily>Segoe UI</df:DefaultFontFamily>
                             <AutoRefresh>0</AutoRefresh>
                             <DataSources>
-                                <DataSource Name=""DataSource1"">
+                                <DataSource Name=""{dataSource}"">
                                     <ConnectionProperties>
                                         <DataProvider>MSCRMFETCH</DataProvider>
-                                        <ConnectString>{GetOrganizationUrl()}</ConnectString>
+                                        <ConnectString>{connectString}</ConnectString>
                                     </ConnectionProperties>
                                     <rd:SecurityType>DataBase</rd:SecurityType>
                                     <rd:DataSourceID>e4424900-e2a3-4595-8520-4ee22c8be663</rd:DataSourceID>
@@ -298,11 +415,24 @@ namespace PaginatedReportGenerator
                                         <Style />
                                     </Body>
                                     <Width>{bodyWidth}in</Width>
-                                        <Page>
-                                            <LeftMargin>1in</LeftMargin>
-                                            <RightMargin>1in</RightMargin>
-                                            <TopMargin>1in</TopMargin>
-                                            <BottomMargin>1in</BottomMargin>
+                                    <Page>
+                                        <PageHeader>
+                                          <Height>{cellHeight}in</Height>
+                                          <PrintOnFirstPage>true</PrintOnFirstPage>
+                                          <PrintOnLastPage>true</PrintOnLastPage>
+                                          <ReportItems>
+                                            {String.Join("\n", reportHeaderXml.ToArray())}
+                                          </ReportItems>
+                                          <Style>
+                                            <Border>
+                                              <Style>None</Style>
+                                            </Border>
+                                          </Style>
+                                        </PageHeader>
+                                        <LeftMargin>1in</LeftMargin>
+                                        <RightMargin>1in</RightMargin>
+                                        <TopMargin>1in</TopMargin>
+                                        <BottomMargin>1in</BottomMargin>
                                         <Style />
                                     </Page>
                                 </ReportSection>
@@ -451,7 +581,7 @@ namespace PaginatedReportGenerator
 
             string dataset = $@"<DataSet Name=""{entity}"">
                                     <Query>
-                                        <DataSourceName>DataSource1</DataSourceName>
+                                        <DataSourceName>{dataSource}</DataSourceName>
                                         {parameters}
                                         <CommandText>{fetchXml.Replace("<", "&lt;").Replace(">", "&gt;\n")}</CommandText>
                                     </Query>
@@ -467,15 +597,19 @@ namespace PaginatedReportGenerator
         {
             var controlList = formDoc.Descendants("control").Where(x => x.Attribute("indicationOfSubgrid") == null).ToList();
             var fieldList = new List<string>();
-
+            string field;
             foreach (var control in controlList)
             {
-                fieldList.Add(control.Attribute("id").Value.Replace("header_", ""));
+                field = control.Attribute("id").Value.Replace("header_", "");
+                if (!fieldList.Contains(field))
+                {
+                    fieldList.Add(field);
+                }
             }
 
             return fieldList;
         }
-            
+
         private List<string> BuildDatasetFieldsXml(string entity, List<string> fieldList)
         {
             List<string> fieldXmlList = new List<string>();
@@ -719,7 +853,7 @@ namespace PaginatedReportGenerator
             List<XElement> columnList, sectionList, rowList, cellList;
 
             ViewMeta viewMeta;
-            string page, title, reportCell, reportTable, targetEntity, viewId, dataset, controlId, txtLabel, txtValue;
+            string page, title, reportCell, reportTable, targetEntity, viewId, dataset, controlId, txtLabel, txtValue, pageBreak;
             int tabIndex = 1;
             double tabTopOffset = 0.0, topOffset = 0.0, leftOffset, cellWidth, itemHeight = cellHeight;
             bool itemAdded = false;
@@ -730,7 +864,6 @@ namespace PaginatedReportGenerator
             {                
                 foreach (XElement tab in tabList)
                 {
-                    tabTopOffset = 9 * (tabIndex-1);
                     topOffset = titleHeight;
                     reportTabElements.Clear();
 
@@ -755,6 +888,7 @@ namespace PaginatedReportGenerator
                             rowList = section.Descendants("row").ToList();
                             foreach (XElement row in rowList)
                             {
+                                itemAdded = false;
                                 leftOffset = 0;
                                 cellList = row.Descendants("cell").ToList();
                                 foreach (XElement cell in cellList)
@@ -822,6 +956,7 @@ namespace PaginatedReportGenerator
                         }
                     }
 
+                    pageBreak = tabIndex == 1 ? "None" : "Start";
                     page = $@"<Rectangle Name=""Rectangle{tabIndex++}"">
                             <ReportItems>
                                 <Textbox Name=""Textbox{textBoxIndex}"">
@@ -856,11 +991,11 @@ namespace PaginatedReportGenerator
                                 {String.Join("\n", reportTabElements.ToArray())}
                             </ReportItems>
                             <PageBreak>
-                                <BreakLocation>End</BreakLocation>
+                                <BreakLocation>{pageBreak}</BreakLocation>
                             </PageBreak>
                             <KeepTogether>true</KeepTogether>
                             <Top>{tabTopOffset}in</Top>
-                            <Height>{bodyHeight}in</Height>
+                            <Height>{topOffset}in</Height>
                             <Width>{bodyWidth}in</Width>
                             <ZIndex>1</ZIndex>
                             <Style>
@@ -871,6 +1006,7 @@ namespace PaginatedReportGenerator
                         </Rectangle>";
 
                     pages.Add(page);
+                    tabTopOffset += topOffset;
                 }                
             }
             catch (Exception ex)
