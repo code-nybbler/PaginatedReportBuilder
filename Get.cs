@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Linq;
 using System.ServiceModel;
+using System.Windows;
 using System.Xml.Linq;
 
 namespace PaginatedReportGenerator
@@ -65,28 +66,39 @@ namespace PaginatedReportGenerator
 
         public static List<EntityMetadata> GetSolutionEntities(string SolutionUniqueName, IOrganizationService Service)
         {
-            // get solution components for solution unique name
-            QueryExpression componentsQuery = new QueryExpression
+            List <EntityMetadata> entities = null;
+            try
             {
-                EntityName = "solutioncomponent",
-                ColumnSet = new ColumnSet("objectid"),
-                Criteria = new FilterExpression(),
-            };
-            LinkEntity solutionLink = new LinkEntity("solutioncomponent", "solution", "solutionid", "solutionid", JoinOperator.Inner);
-            solutionLink.LinkCriteria = new FilterExpression();
-            solutionLink.LinkCriteria.AddCondition(new ConditionExpression("uniquename", ConditionOperator.Equal, SolutionUniqueName));
-            componentsQuery.LinkEntities.Add(solutionLink);
-            componentsQuery.Criteria.AddCondition(new ConditionExpression("componenttype", ConditionOperator.Equal, 1));
-            EntityCollection ComponentsResult = Service.RetrieveMultiple(componentsQuery);
-            //Get all entities
-            RetrieveAllEntitiesRequest AllEntitiesrequest = new RetrieveAllEntitiesRequest()
+                // get solution components for solution unique name
+                QueryExpression componentsQuery = new QueryExpression
+                {
+                    EntityName = "solutioncomponent",
+                    ColumnSet = new ColumnSet("objectid"),
+                    Criteria = new FilterExpression(),
+                };
+                LinkEntity solutionLink = new LinkEntity("solutioncomponent", "solution", "solutionid", "solutionid", JoinOperator.Inner);
+                solutionLink.LinkCriteria = new FilterExpression();
+                solutionLink.LinkCriteria.AddCondition(new ConditionExpression("uniquename", ConditionOperator.Equal, SolutionUniqueName));
+                componentsQuery.LinkEntities.Add(solutionLink);
+                componentsQuery.Criteria.AddCondition(new ConditionExpression("componenttype", ConditionOperator.Equal, 1));
+                EntityCollection ComponentsResult = Service.RetrieveMultiple(componentsQuery);
+                //Get all entities
+                RetrieveAllEntitiesRequest AllEntitiesrequest = new RetrieveAllEntitiesRequest()
+                {
+                    EntityFilters = EntityFilters.Entity | EntityFilters.Attributes,
+                    RetrieveAsIfPublished = true
+                };
+                RetrieveAllEntitiesResponse AllEntitiesresponse = (RetrieveAllEntitiesResponse)Service.Execute(AllEntitiesrequest);
+                
+                //Join entities Id and solution Components Id 
+                entities = AllEntitiesresponse.EntityMetadata.Join(ComponentsResult.Entities.Select(x => x.Attributes["objectid"]), x => x.MetadataId, y => y, (x, y) => x).ToList();
+            }
+            catch (Exception ex)
             {
-                EntityFilters = EntityFilters.Entity | Microsoft.Xrm.Sdk.Metadata.EntityFilters.Attributes,
-                RetrieveAsIfPublished = true
-            };
-            RetrieveAllEntitiesResponse AllEntitiesresponse = (RetrieveAllEntitiesResponse)Service.Execute(AllEntitiesrequest);
-            //Join entities Id and solution Components Id 
-            return AllEntitiesresponse.EntityMetadata.Join(ComponentsResult.Entities.Select(x => x.Attributes["objectid"]), x => x.MetadataId, y => y, (x, y) => x).ToList();
+                MessageBox.Show(ex.Message);
+            }
+            
+            return entities;
         }
 
         public static EntityCollection GetSolutions(IOrganizationService Service)

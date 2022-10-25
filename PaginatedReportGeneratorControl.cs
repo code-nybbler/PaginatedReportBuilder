@@ -300,7 +300,7 @@ namespace PaginatedReportGenerator
 
                 datasets = new List<DatasetMeta>();
                 // add main prefiltered dataset
-                DatasetMeta dataset1 = Build.BuildDataset(entitySelected, dataSource, datasets, entitySelected, fields, fieldsXml, null, null, Service); //BuildDataset(entitySelected, fields, fieldsXml, null, null);
+                DatasetMeta dataset1 = Build.BuildDataset(entitySelected, dataSource, datasets, entitySelected, fields, fieldsXml, null, null, Service);
                 datasets.Add(dataset1);
 
                 List<string> parameters = Build.BuildParameters(entitySelected);
@@ -427,7 +427,7 @@ namespace PaginatedReportGenerator
                 {
                     reportTabElements.Clear();
 
-                    title = tab.Element("labels").Element("label").Attribute("description").Value;
+                    title = tab.Element("labels").Element("label").Attribute("description").Value.Replace("&", " and ").Replace("“", "").Replace("”", "").Replace("\"", "").Replace("'", "");
                     reportCell = Build.BuildTextBox(textBoxIndex++, "", title, 0, 0, bodyWidth, 20, titleHeight);
                     reportTabElements.Add(reportCell);
                     topOffset = titleHeight + (cellPadding * 2);
@@ -450,7 +450,7 @@ namespace PaginatedReportGenerator
                             {
                                 topOffset += cellHeight + (cellPadding * 2); // for padding
 
-                                txtValue = section.Element("labels").Element("label").Attribute("description").Value;
+                                txtValue = section.Element("labels").Element("label").Attribute("description").Value.Replace("&", " and ").Replace("“", "").Replace("”", "").Replace("\"", "").Replace("'", "");
                                 reportCell = Build.BuildTextBox(textBoxIndex++, "", txtValue, topOffset, leftOffset, cellWidth, 15, cellHeight * 1.5);
                                 reportTabElements.Add(reportCell);
 
@@ -476,7 +476,7 @@ namespace PaginatedReportGenerator
                                         if (cell.Descendants("control").Where(x => x.Attribute("indicationOfSubgrid") == null).ToList().Count > 0)
                                         {
                                             // create text box
-                                            txtLabel = cell.Element("labels").Element("label").Attribute("description").Value;
+                                            txtLabel = cell.Element("labels").Element("label").Attribute("description").Value.Replace("&", " and ").Replace("“", "").Replace("”", "").Replace("\"", "").Replace("'", "");
                                             txtValue = $"=\"&lt;b&gt;{txtLabel}:&lt;/b&gt; \" + First(Fields!{cell.Element("control").Attribute("id").Value}.Value, \"{entitySelected}\")";
 
                                             reportCell = Build.BuildTextBox(textBoxIndex++, txtLabel, txtValue, topOffset, leftOffset, cellWidth, 10, cellHeight);
@@ -515,7 +515,7 @@ namespace PaginatedReportGenerator
                                                     {
                                                         topOffset += cellHeight + (cellPadding * 2); // for padding
 
-                                                        txtValue = cell.Element("labels").Element("label").Attribute("description").Value;
+                                                        txtValue = cell.Element("labels").Element("label").Attribute("description").Value.Replace("&", " and ").Replace("“", "").Replace("”", "").Replace("\"", "").Replace("'", "");
                                                         reportCell = Build.BuildTextBox(textBoxIndex++, "", txtValue, topOffset, leftOffset, cellWidth, 15, titleHeight);
                                                         reportTabElements.Add(reportCell);
 
@@ -593,7 +593,7 @@ namespace PaginatedReportGenerator
                             </TablixColumn>";
                 members += "<TablixMember />";
 
-                label = $"&lt;b&gt;{entitymeta.Attributes.Where(x => x.LogicalName == field).First().DisplayName.UserLocalizedLabel.Label}&lt;/b&gt;";
+                label = $"&lt;b&gt;{entitymeta.Attributes.Where(x => x.LogicalName == field).First().DisplayName.UserLocalizedLabel.Label.Replace("&", " and ").Replace("“", "").Replace("”", "").Replace("\"", "").Replace("'", "")}&lt;/b&gt;";
                 headerColumns += Build.BuildTableCell(textBoxIndex++, label, "");
 
                 bodyColumns += Build.BuildTableCell(textBoxIndex++, label, field);

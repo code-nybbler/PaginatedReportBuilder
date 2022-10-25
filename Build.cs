@@ -16,7 +16,7 @@ namespace PaginatedReportGenerator
     {
         public static DatasetMeta BuildDataset(string entitySelected, string dataSource, List<DatasetMeta> datasets, string entity, List<string> fields, List<string> fieldsXml, string relationship, XDocument viewFetchXml, IOrganizationService Service)
         {
-            string parameters = "", fetchXml;
+            string fetchXml;
 
             if (viewFetchXml != null) // related entity
             {
@@ -33,13 +33,17 @@ namespace PaginatedReportGenerator
 
                     if (relToPrimary != null && viewFetchXml.Descendants("link-entity").Where(x => x.Attribute("name").Value.ToString() == entitySelected).ToList().Count == 0)
                     {
-                        string linkedEntity = $"\n    <link-entity name=\"{entitySelected}\" alias=\"aa\" link-type=\"inner\" from=\"{entitySelected}id\" to=\"{relToPrimary.ReferencingAttribute}\" enableprefiltering=\"1\">\n\n        <attribute name=\"{entitySelected}id\" />\n\n</link-entity>\n\n";
+                        string linkedEntity = $"\n    <link-entity name=\"{entitySelected}\" alias=\"aa\" from=\"{entitySelected}id\" to=\"{relToPrimary.ReferencingAttribute}\" enableprefiltering=\"true\">\n\n        <attribute name=\"{entitySelected}id\" />\n\n</link-entity>\n\n";
 
                         viewFetchXml.Descendants("entity").First().Add(linkedEntity); // add prefiltered link back to main entity
                     }
                 }
 
                 fetchXml = viewFetchXml.ToString();
+                fieldsXml.Add($@"<Field Name=""aa_{entitySelected}id"">
+                                    <DataField>aa_{entitySelected}id</DataField>
+                                    <rd:TypeName>System.String</rd:TypeName>
+                                </Field>");
             }
             else // main entity
             {
@@ -53,13 +57,7 @@ namespace PaginatedReportGenerator
                 };
                 QueryExpressionToFetchXmlResponse response = (QueryExpressionToFetchXmlResponse)Service.Execute(request);
 
-                parameters = $@"<QueryParameters>
-                                    <QueryParameter Name=""CRM_{entity}"">
-                                        <Value>=Parameters!CRM_{entity}.Value</Value>
-                                    </QueryParameter>
-                                </QueryParameters>";
-
-                fetchXml = response.FetchXml.Replace($"entity name=\"{entity}\"", $"entity name=\"{entity}\" enableprefiltering=\"1\"");
+                fetchXml = response.FetchXml.Replace($"entity name=\"{entity}\"", $"entity name=\"{entity}\" enableprefiltering=\"true\"");
             }
 
             string name = entity;
@@ -69,10 +67,14 @@ namespace PaginatedReportGenerator
                 name = entity + nameIdx++;
             }
 
-            string datasetFetchXml = $@"<DataSet Name=""{entity}"">
+            string datasetFetchXml = $@"<DataSet Name=""{name}"">
                                     <Query>
                                         <DataSourceName>{dataSource}</DataSourceName>
-                                        {parameters}
+                                            <QueryParameters>
+                                                <QueryParameter Name=""CRM_{entitySelected}"">
+                                                    <Value>=Parameters!CRM_{entitySelected}.Value</Value>
+                                                </QueryParameter>
+                                            </QueryParameters>
                                         <CommandText>{fetchXml.Replace("<", "&lt;").Replace(">", "&gt;\n")}</CommandText>
                                     </Query>
                                     <Fields>
