@@ -206,10 +206,10 @@ namespace PaginatedReportGenerator
                                             <Color>LightGrey</Color>
                                             <Style>Solid</Style>
                                         </Border>
-                                        <PaddingLeft>2pt</PaddingLeft>
-                                        <PaddingRight>2pt</PaddingRight>
-                                        <PaddingTop>2pt</PaddingTop>
-                                        <PaddingBottom>2pt</PaddingBottom>
+                                        <PaddingLeft>.014in</PaddingLeft>
+                                        <PaddingRight>.014in</PaddingRight>
+                                        <PaddingTop>.014in</PaddingTop>
+                                        <PaddingBottom>.014in</PaddingBottom>
                                         </Style>
                                     </Textbox>
                                 </CellContents>
@@ -248,10 +248,10 @@ namespace PaginatedReportGenerator
                                         <Border>
                                             <Style>None</Style>
                                         </Border>
-                                        <PaddingLeft>2pt</PaddingLeft>
-                                        <PaddingRight>2pt</PaddingRight>
-                                        <PaddingTop>2pt</PaddingTop>
-                                        <PaddingBottom>2pt</PaddingBottom>
+                                        <PaddingLeft>.014in</PaddingLeft>
+                                        <PaddingRight>.014in</PaddingRight>
+                                        <PaddingTop>.014in</PaddingTop>
+                                        <PaddingBottom>.014in</PaddingBottom>
                                     </Style>
                                 </Textbox>";
 

@@ -24,6 +24,7 @@ namespace PaginatedReportGenerator
         private readonly double bodyWidth = 6.5;
         private readonly double titleHeight = .5;
         private readonly double cellHeight = .225;
+        private readonly double cellPadding = .014;
         private int textBoxIndex, tableIndex;
         private string entitySelected;
         private XDocument formDoc, generatedReport;
@@ -74,36 +75,7 @@ namespace PaginatedReportGenerator
         {
             box_solutionSelect.Items.Clear();
 
-            WorkAsync(new WorkAsyncInfo
-            {
-                Message = "Retrieving solutions...",
-                Work = (w, e2) =>
-                {
-                    // This code is executed in another thread
-                    solutions = Get.GetSolutions(Service);
-
-                    w.ReportProgress(-1, "Solutions loaded.");
-                    e2.Result = 1;
-                },
-                ProgressChanged = e2 =>
-                {
-                    SetWorkingMessage(e2.UserState.ToString());
-                },
-                PostWorkCallBack = e2 =>
-                {
-                    // This code is executed in the main thread
-                    foreach (var entity in solutions.Entities)
-                    {
-                        box_solutionSelect.Items.Add(entity["friendlyname"]);
-                    }
-
-                    box_solutionSelect.Enabled = true;
-                },
-                AsyncArgument = null,
-                // Progress information panel size
-                MessageWidth = 340,
-                MessageHeight = 150
-            });            
+            LoadSolutions();
         }
 
         private void box_solutionSelect_SelectedIndexChanged(object sender, EventArgs e)
@@ -111,7 +83,10 @@ namespace PaginatedReportGenerator
             box_entitySelect.Items.Clear();
             lst_forms.Items.Clear();
 
-            LoadEntities(box_solutionSelect.SelectedItem.ToString());
+            if (box_solutionSelect.SelectedIndex != -1)
+            {
+                LoadEntities(box_solutionSelect.SelectedItem.ToString());
+            }
         }
 
         private void box_entitySelect_SelectedIndexChanged(object sender, EventArgs e)
@@ -120,13 +95,7 @@ namespace PaginatedReportGenerator
 
             if (box_entitySelect.SelectedIndex != -1)
             {
-                forms = Get.GetEntityForms((int)entities.Find(x => x.LogicalName == box_entitySelect.SelectedItem.ToString()).ObjectTypeCode, Service);
-
-                foreach (var form in forms)
-                {
-                    lst_forms.Items.Add(form["name"]);
-                }
-                EnableInputs();
+                LoadForms(box_entitySelect.SelectedItem.ToString());
             }
         }
 
@@ -194,6 +163,107 @@ namespace PaginatedReportGenerator
             
         }
 
+        private void LoadEntities(string solution)
+        {
+            WorkAsync(new WorkAsyncInfo
+            {
+                Message = "Retrieving entities...",
+                Work = (w, e2) =>
+                {
+                    // This code is executed in another thread
+                    entities = Get.GetSolutionEntities(solution, Service);
+
+                    w.ReportProgress(-1, "Entities loaded.");
+                    e2.Result = 1;
+                },
+                ProgressChanged = e2 =>
+                {
+                    SetWorkingMessage(e2.UserState.ToString());
+                },
+                PostWorkCallBack = e2 =>
+                {
+                    // This code is executed in the main thread
+                    foreach (var entity in entities)
+                    {
+                        box_entitySelect.Items.Add(entity.LogicalName);
+                    }
+
+                    box_entitySelect.Enabled = true;
+                },
+                AsyncArgument = null,
+                // Progress information panel size
+                MessageWidth = 340,
+                MessageHeight = 150
+            });
+        }
+
+        private void LoadForms(string entity)
+        {
+            WorkAsync(new WorkAsyncInfo
+            {
+                Message = "Retrieving forms...",
+                Work = (w, e) =>
+                {
+                    // This code is executed in another thread
+                    forms = Get.GetEntityForms((int)entities.Find(x => x.LogicalName == entity).ObjectTypeCode, Service);
+
+                    w.ReportProgress(-1, "Forms loaded.");
+                    e.Result = 1;
+                },
+                ProgressChanged = e =>
+                {
+                    SetWorkingMessage(e.UserState.ToString());
+                },
+                PostWorkCallBack = e =>
+                {
+                    // This code is executed in the main thread
+                    foreach (var form in forms)
+                    {
+                        lst_forms.Items.Add(form["name"]);
+                    }
+
+                    EnableInputs();
+                },
+                AsyncArgument = null,
+                // Progress information panel size
+                MessageWidth = 340,
+                MessageHeight = 150
+            });
+        }
+
+        private void LoadSolutions()
+        {
+            WorkAsync(new WorkAsyncInfo
+            {
+                Message = "Retrieving solutions...",
+                Work = (w, e) =>
+                {
+                    // This code is executed in another thread
+                    solutions = Get.GetSolutions(Service);
+
+                    w.ReportProgress(-1, "Solutions loaded.");
+                    e.Result = 1;
+                },
+                ProgressChanged = e =>
+                {
+                    SetWorkingMessage(e.UserState.ToString());
+                },
+                PostWorkCallBack = e =>
+                {
+                    // This code is executed in the main thread
+                    foreach (var entity in solutions.Entities)
+                    {
+                        box_solutionSelect.Items.Add(entity["friendlyname"]);
+                    }
+
+                    box_solutionSelect.Enabled = true;
+                },
+                AsyncArgument = null,
+                // Progress information panel size
+                MessageWidth = 340,
+                MessageHeight = 150
+            });
+        }
 
 
         private void DisableInputs()
@@ -346,7 +416,8 @@ namespace PaginatedReportGenerator
             string page, title, reportCell, reportTable, targetEntity, viewId, controlId, txtLabel, txtValue, pageBreak;
             int tabIndex = 1;
             double tabTopOffset = 0.0, topOffset = 0.0, leftOffset, cellWidth, itemHeight = cellHeight;
-            bool itemAdded = false;
+            bool textBoxAdded = false;
+            bool tableAdded = false;
             textBoxIndex = 1;
             tableIndex = 1;
 
@@ -354,55 +425,65 @@ namespace PaginatedReportGenerator
             {                
                 foreach (XElement tab in tabList)
                 {
-                    topOffset = titleHeight;
                     reportTabElements.Clear();
 
                     title = tab.Element("labels").Element("label").Attribute("description").Value;
+                    reportCell = Build.BuildTextBox(textBoxIndex++, "", title, 0, 0, bodyWidth, 20, titleHeight);
+                    reportTabElements.Add(reportCell);
+                    topOffset = titleHeight + (cellPadding * 2);
+
                     columnList = tab.Descendants("column").ToList();
                     foreach (XElement column in columnList)
                     {
-                        cellWidth = bodyWidth; // Double.Parse(column.Attribute("width").Value.Replace("%", ""))/100.0 * bodyWidth;
+                        cellWidth = bodyWidth;
                         
                         sectionList = column.Descendants("section").ToList();
                         foreach (XElement section in sectionList)
                         {
                             leftOffset = 0;
-                            if (section.Attribute("showlabel").Value == "true")
+
+                            if (section.Attribute("showlabel").Value == "true" &&
+                                section.Descendants("row").Descendants("cell")
+                                    .Where(x => x.Descendants("QuickForms").ToList().Count == 0)
+                                    .Where(x => x.Descendants("WebResourceId").ToList().Count == 0)
+                                    .Where(x => x.Descendants().Where(y => y.Name.LocalName.Contains("UClient")).ToList().Count == 0).ToList().Count > 0) // has >= 1 control that is not a quick view, web resource or UClient control (i.e. timeline)
                             {
-                                topOffset += cellHeight;
+                                topOffset += cellHeight + (cellPadding * 2); // for padding
+
                                 txtValue = section.Element("labels").Element("label").Attribute("description").Value;
-                                reportCell = Build.BuildTextBox(textBoxIndex, "", txtValue, topOffset, leftOffset, cellWidth, 15, cellHeight*1.5);
+                                reportCell = Build.BuildTextBox(textBoxIndex++, "", txtValue, topOffset, leftOffset, cellWidth, 15, cellHeight * 1.5);
                                 reportTabElements.Add(reportCell);
-                                textBoxIndex++;
-                                topOffset += titleHeight;
+
+                                topOffset += (cellHeight * 1.5) + (cellPadding * 2);
                             }
                             rowList = section.Descendants("row").ToList();
                             foreach (XElement row in rowList)
                             {
-                                itemAdded = false;
+                                textBoxAdded = false;
+                                tableAdded = false;
                                 leftOffset = 0;
-                                //cellWidth = Double.Parse(column.Attribute("width").Value.Replace("%", "")) / 100.0 * bodyWidth;
 
-                                cellList = row.Descendants("cell").Where(x => x.Descendants("QuickForms").ToList().Count == 0).ToList();
+                                cellList = row.Descendants("cell")
+                                            .Where(x => x.Descendants("QuickForms").ToList().Count == 0)
+                                            .Where(x => x.Descendants("WebResourceId").ToList().Count == 0)
+                                            .Where(x => x.Descendants().Where(y => y.Name.LocalName.Contains("UClient")).ToList().Count == 0).ToList(); // all controls that are not quick views, web resources or UClient control (i.e. timeline)
                                 if (cellList.Count > 0)
                                 {
-                                    cellWidth = bodyWidth / cellList.Count;
+                                    cellWidth = (bodyWidth / cellList.Count) - (cellPadding * 2);
 
                                     foreach (XElement cell in cellList)
                                     {
-                                        itemAdded = false;
                                         if (cell.Descendants("control").Where(x => x.Attribute("indicationOfSubgrid") == null).ToList().Count > 0)
                                         {
-                                            itemHeight = cellHeight;
                                             // create text box
                                             txtLabel = cell.Element("labels").Element("label").Attribute("description").Value;
                                             txtValue = $"=\"&lt;b&gt;{txtLabel}:&lt;/b&gt; \" + First(Fields!{cell.Element("control").Attribute("id").Value}.Value, \"{entitySelected}\")";
 
-                                            reportCell = Build.BuildTextBox(textBoxIndex, txtLabel, txtValue, topOffset, leftOffset, cellWidth, 10, cellHeight);
+                                            reportCell = Build.BuildTextBox(textBoxIndex++, txtLabel, txtValue, topOffset, leftOffset, cellWidth, 10, cellHeight);
                                             reportTabElements.Add(reportCell);
-                                            textBoxIndex++;
 
-                                            itemAdded = true;
+                                            textBoxAdded = true;
+                                            leftOffset += cellWidth + (cellPadding * 2);
                                         }
                                         else if (cell.Descendants("control").ToList().Count > 0)
                                         {
@@ -432,27 +513,28 @@ namespace PaginatedReportGenerator
                                                     // create title box and table
                                                     if (cell.Attribute("showlabel").Value == "true")
                                                     {
-                                                        topOffset += cellHeight;
+                                                        topOffset += cellHeight + (cellPadding * 2); // for padding
+
                                                         txtValue = cell.Element("labels").Element("label").Attribute("description").Value;
-                                                        reportCell = Build.BuildTextBox(textBoxIndex, "", txtValue, topOffset, leftOffset, cellWidth, 15, titleHeight);
+                                                        reportCell = Build.BuildTextBox(textBoxIndex++, "", txtValue, topOffset, leftOffset, cellWidth, 15, titleHeight);
                                                         reportTabElements.Add(reportCell);
-                                                        textBoxIndex++;
-                                                        topOffset += titleHeight;
+
+                                                        topOffset += titleHeight + (cellPadding * 2);
                                                     }
 
-                                                    itemHeight = cellHeight * 2;
                                                     reportTable = BuildTable(targetEntity, viewFields, topOffset, leftOffset, cellWidth, datasetMeta.name);
                                                     reportTabElements.Add(reportTable);
                                                     tableIndex++;
 
-                                                    itemAdded = true;
+                                                    tableAdded = true;
+                                                    leftOffset += cellWidth;
                                                 }
                                             }
                                         }
-                                        if (itemAdded == true) leftOffset += cellWidth;
                                     }
-                                    if (itemAdded == true) topOffset += itemHeight;
                                 }
+                                if (textBoxAdded) topOffset += cellHeight + (cellPadding * 2);
+                                else if (tableAdded) topOffset += (cellHeight + (cellPadding * 2)) * 2; // tables will have 2 rows
                             }
                         }
                     }
@@ -460,35 +542,6 @@ namespace PaginatedReportGenerator
                     pageBreak = tabIndex == 1 ? "None" : "Start";
                     page = $@"<Rectangle Name=""Rectangle{tabIndex++}"">
                             <ReportItems>
-                                <Textbox Name=""Textbox{textBoxIndex}"">
-                                <CanGrow>true</CanGrow>
-                                <KeepTogether>true</KeepTogether>
-                                <Paragraphs>
-                                    <Paragraph>
-                                    <TextRuns>
-                                        <TextRun>
-                                        <Value>{title}</Value>
-                                        <Style>
-                                            <FontSize>20pt</FontSize>
-                                        </Style>
-                                        </TextRun>
-                                    </TextRuns>
-                                    <Style />
-                                    </Paragraph>
-                                </Paragraphs>
-                                <rd:DefaultName>Textbox{textBoxIndex++}</rd:DefaultName>
-                                <Height>{titleHeight}in</Height>
-                                <Width>{bodyWidth}in</Width>
-                                <Style>
-                                    <Border>
-                                    <Style>None</Style>
-                                    </Border>
-                                    <PaddingLeft>2pt</PaddingLeft>
-                                    <PaddingRight>2pt</PaddingRight>
-                                    <PaddingTop>2pt</PaddingTop>
-                                    <PaddingBottom>2pt</PaddingBottom>
-                                </Style>
-                                </Textbox>
                                 {String.Join("\n", reportTabElements.ToArray())}
                             </ReportItems>
                             <PageBreak>
@@ -516,40 +569,6 @@ namespace PaginatedReportGenerator
             }
 
             return pages;
-        }
-
-        private void LoadEntities(string solution)
-        {
-            WorkAsync(new WorkAsyncInfo
-            {
-                Message = "Retrieving entities...",
-                Work = (w, e2) =>
-                {
-                    // This code is executed in another thread
-                    entities = Get.GetSolutionEntities(solution, Service);
-
-                    w.ReportProgress(-1, "Entities loaded.");
-                    e2.Result = 1;
-                },
-                ProgressChanged = e2 =>
-                {
-                    SetWorkingMessage(e2.UserState.ToString());
-                },
-                PostWorkCallBack = e2 =>
-                {
-                    // This code is executed in the main thread
-                    foreach (var entity in entities)
-                    {
-                        box_entitySelect.Items.Add(entity.LogicalName);
-                    }
-
-                    box_entitySelect.Enabled = true;
-                },
-                AsyncArgument = null,
-                // Progress information panel size
-                MessageWidth = 340,
-                MessageHeight = 150
-            });
         }
 
         private string BuildTable(string entity, List<string> viewFields, double top, double left, double width, string datasetName)
@@ -622,7 +641,7 @@ namespace PaginatedReportGenerator
                 <DataSetName>{datasetName}</DataSetName>
                 <Top>{top}in</Top>
                 <Left>{left}in</Left>
-                <Height>0.5in</Height>
+                <Height>{cellHeight * 2}in</Height>
                 <Width>{width}in</Width>
                 <ZIndex>4</ZIndex>
                 <Style>

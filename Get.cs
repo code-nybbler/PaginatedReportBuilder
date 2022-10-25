@@ -1,5 +1,4 @@
-﻿using McTools.Xrm.Connection;
-using Microsoft.Crm.Sdk.Messages;
+﻿using Microsoft.Crm.Sdk.Messages;
 using Microsoft.Xrm.Sdk;
 using Microsoft.Xrm.Sdk.Messages;
 using Microsoft.Xrm.Sdk.Metadata;
@@ -10,10 +9,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Linq;
 using System.ServiceModel;
-using System.Web.Services.Description;
-using System.Windows.Forms;
 using System.Xml.Linq;
-using XrmToolBox.Extensibility;
 
 namespace PaginatedReportGenerator
 {
@@ -26,7 +22,7 @@ namespace PaginatedReportGenerator
             query.ColumnSet.AddColumn("name");
             query.ColumnSet.AddColumn("formxml");
 
-            return Service.RetrieveMultiple(query).Entities.ToList(); ;
+            return Service.RetrieveMultiple(query).Entities.ToList();
         }
 
         public static List<string> GetFormFields(XDocument formDoc, string entitySelected, IOrganizationService Service)
@@ -122,11 +118,11 @@ namespace PaginatedReportGenerator
 
         public static ViewMeta GetViewFields(string viewId, IOrganizationService Service)
         {
-            List<string> fieldNames = new List<string>();
+            ViewMeta viewMeta = null;
 
             QueryExpression viewQuery = new QueryExpression
             {
-                ColumnSet = new ColumnSet("savedqueryid", "fetchxml"),
+                ColumnSet = new ColumnSet("savedqueryid", "fetchxml", "returnedtypecode"),
                 EntityName = "savedquery",
                 Criteria = new FilterExpression
                 {
@@ -143,21 +139,38 @@ namespace PaginatedReportGenerator
 
             RetrieveMultipleRequest retrieveSavedQueriesRequest = new RetrieveMultipleRequest { Query = viewQuery };
             RetrieveMultipleResponse retrieveSavedQueriesResponse = (RetrieveMultipleResponse)Service.Execute(retrieveSavedQueriesRequest);
-            DataCollection<Entity> retrievedQueries = retrieveSavedQueriesResponse.EntityCollection.Entities;
+            Entity retrievedQuery = retrieveSavedQueriesResponse.EntityCollection.Entities.First();
 
-            XDocument viewDoc = null;
-            List<XElement> viewFields;
-            foreach (Entity ent in retrievedQueries)
+            if (retrievedQuery != null)
             {
-                viewDoc = XDocument.Parse(ent.Attributes["fetchxml"].ToString());
-                viewFields = viewDoc.Descendants("attribute").ToList();
-                foreach (XElement field in viewFields)
+                RetrieveEntityRequest req = new RetrieveEntityRequest()
                 {
-                    fieldNames.Add(field.Attribute("name").Value);
+                    EntityFilters = EntityFilters.Attributes,
+                    LogicalName = retrievedQuery["returnedtypecode"].ToString()
+                };
+                EntityMetadata entitymeta = (Service.Execute(req) as RetrieveEntityResponse).EntityMetadata;
+
+                if (entitymeta != null) {
+                    
+                    XDocument viewDoc = XDocument.Parse(retrievedQuery["fetchxml"].ToString());
+                    List<XElement> viewColumns = viewDoc.Descendants("attribute").ToList();
+                    List<string> fieldList = new List<string>();
+                    string field;
+                    foreach (XElement column in viewColumns)
+                    {
+                        field = column.Attribute("name").Value;
+
+                        if (!fieldList.Contains(field) &&
+                            entitymeta.Attributes.Where(x => x.LogicalName == field).ToList().Count > 0) // check if real field (could be from related record)
+                        {
+                            fieldList.Add(field);
+                        }
+                    }
+                    viewMeta = new ViewMeta(fieldList, viewDoc);
                 }
             }
 
-            return new ViewMeta(fieldNames, viewDoc);
+            return viewMeta;
         }
     }
 }
