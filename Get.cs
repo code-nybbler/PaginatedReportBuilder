@@ -12,7 +12,7 @@ using System.ServiceModel;
 using System.Windows;
 using System.Xml.Linq;
 
-namespace PaginatedReportGenerator
+namespace PaginatedReportBuilder
 {
     public partial class Get
     {

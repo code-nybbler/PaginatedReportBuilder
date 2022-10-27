@@ -5,11 +5,11 @@ using System.Runtime.InteropServices;
 // General Information about an assembly is controlled through the following 
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("PaginatedReportGenerator")]
-[assembly: AssemblyDescription("Generates a paginated report based off a selected D365 form")]
+[assembly: AssemblyTitle("PaginatedReportBuilder")]
+[assembly: AssemblyDescription("Builds a paginated report based off a selected D365 form")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("Luke Thomas")]
-[assembly: AssemblyProduct("PaginatedReportGenerator")]
+[assembly: AssemblyProduct("PaginatedReportBuilder")]
 [assembly: AssemblyCopyright("Copyright ©  2022")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]

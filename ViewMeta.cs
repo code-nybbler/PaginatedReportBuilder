@@ -1,7 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Xml.Linq;
 
-namespace PaginatedReportGenerator
+namespace PaginatedReportBuilder
 {
     public class ViewMeta
     {

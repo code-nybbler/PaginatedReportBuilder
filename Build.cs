@@ -10,7 +10,7 @@ using System.Linq;
 using System.Windows.Forms;
 using System.Xml.Linq;
 
-namespace PaginatedReportGenerator
+namespace PaginatedReportBuilder
 {
     public partial class Build
     {
