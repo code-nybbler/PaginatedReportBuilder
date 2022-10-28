@@ -2,7 +2,7 @@
 <Project ToolsVersion="Current" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|AnyCPU'">
     <StartAction>Program</StartAction>
-    <StartProgram>C:\Users\LukeThomas\Desktop\CustomXrmToolboxTools\PaginatedReportGenerator\bin\Debug\XrmToolBox.exe</StartProgram>
+    <StartProgram>C:\Users\LukeThomas\Desktop\CustomXrmToolboxTools\PaginatedReportBuilder\bin\Debug\XrmToolBox.exe</StartProgram>
     <StartArguments>/overridepath:. /plugin:"Paginated Report Builder"</StartArguments>
   </PropertyGroup>
 </Project>

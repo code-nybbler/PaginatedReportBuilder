@@ -32,7 +32,6 @@
             this.toolStripMenu = new System.Windows.Forms.ToolStrip();
             this.tsbClose = new System.Windows.Forms.ToolStripButton();
             this.tssSeparator1 = new System.Windows.Forms.ToolStripSeparator();
-            this.btn_loadSolutions = new System.Windows.Forms.ToolStripButton();
             this.box_entitySelect = new System.Windows.Forms.ComboBox();
             this.lst_forms = new System.Windows.Forms.ListBox();
             this.label1 = new System.Windows.Forms.Label();
@@ -44,8 +43,7 @@
             this.label5 = new System.Windows.Forms.Label();
             this.pictureBox1 = new System.Windows.Forms.PictureBox();
             this.btn_download = new System.Windows.Forms.Button();
-            this.label3 = new System.Windows.Forms.Label();
-            this.box_solutionSelect = new System.Windows.Forms.ComboBox();
+            this.btn_loadEntities = new System.Windows.Forms.ToolStripButton();
             this.toolStripMenu.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox1)).BeginInit();
             this.SuspendLayout();
@@ -56,7 +54,7 @@
             this.toolStripMenu.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.tsbClose,
             this.tssSeparator1,
-            this.btn_loadSolutions});
+            this.btn_loadEntities});
             this.toolStripMenu.Location = new System.Drawing.Point(0, 0);
             this.toolStripMenu.Name = "toolStripMenu";
             this.toolStripMenu.Size = new System.Drawing.Size(1314, 25);
@@ -76,22 +74,11 @@
             this.tssSeparator1.Name = "tssSeparator1";
             this.tssSeparator1.Size = new System.Drawing.Size(6, 25);
             // 
-            // btn_loadSolutions
-            // 
-            this.btn_loadSolutions.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Text;
-            this.btn_loadSolutions.Image = ((System.Drawing.Image)(resources.GetObject("btn_loadSolutions.Image")));
-            this.btn_loadSolutions.ImageTransparentColor = System.Drawing.Color.Magenta;
-            this.btn_loadSolutions.Name = "btn_loadSolutions";
-            this.btn_loadSolutions.Size = new System.Drawing.Size(89, 22);
-            this.btn_loadSolutions.Text = "Load Solutions";
-            this.btn_loadSolutions.ToolTipText = "Load Solutions";
-            this.btn_loadSolutions.Click += new System.EventHandler(this.btn_loadSolutions_Click);
-            // 
             // box_entitySelect
             // 
             this.box_entitySelect.Enabled = false;
             this.box_entitySelect.FormattingEnabled = true;
-            this.box_entitySelect.Location = new System.Drawing.Point(6, 85);
+            this.box_entitySelect.Location = new System.Drawing.Point(6, 45);
             this.box_entitySelect.Name = "box_entitySelect";
             this.box_entitySelect.Size = new System.Drawing.Size(212, 21);
             this.box_entitySelect.TabIndex = 5;
@@ -101,7 +88,7 @@
             // 
             this.lst_forms.Enabled = false;
             this.lst_forms.FormattingEnabled = true;
-            this.lst_forms.Location = new System.Drawing.Point(6, 125);
+            this.lst_forms.Location = new System.Drawing.Point(6, 85);
             this.lst_forms.Name = "lst_forms";
             this.lst_forms.Size = new System.Drawing.Size(211, 82);
             this.lst_forms.TabIndex = 6;
@@ -110,7 +97,7 @@
             // label1
             // 
             this.label1.AutoSize = true;
-            this.label1.Location = new System.Drawing.Point(3, 69);
+            this.label1.Location = new System.Drawing.Point(3, 29);
             this.label1.Name = "label1";
             this.label1.Size = new System.Drawing.Size(80, 13);
             this.label1.TabIndex = 8;
@@ -119,7 +106,7 @@
             // label2
             // 
             this.label2.AutoSize = true;
-            this.label2.Location = new System.Drawing.Point(3, 109);
+            this.label2.Location = new System.Drawing.Point(3, 69);
             this.label2.Name = "label2";
             this.label2.Size = new System.Drawing.Size(77, 13);
             this.label2.TabIndex = 9;
@@ -131,7 +118,7 @@
             this.btn_generate.Enabled = false;
             this.btn_generate.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btn_generate.ForeColor = System.Drawing.SystemColors.Highlight;
-            this.btn_generate.Location = new System.Drawing.Point(6, 213);
+            this.btn_generate.Location = new System.Drawing.Point(6, 173);
             this.btn_generate.Name = "btn_generate";
             this.btn_generate.Size = new System.Drawing.Size(212, 23);
             this.btn_generate.TabIndex = 11;
@@ -179,7 +166,7 @@
             this.pictureBox1.BackgroundImage = global::PaginatedReportBuilder.Properties.Resources.sagemodeicon8080;
             this.pictureBox1.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Center;
             this.pictureBox1.Enabled = false;
-            this.pictureBox1.Location = new System.Drawing.Point(6, 241);
+            this.pictureBox1.Location = new System.Drawing.Point(6, 201);
             this.pictureBox1.Margin = new System.Windows.Forms.Padding(2);
             this.pictureBox1.Name = "pictureBox1";
             this.pictureBox1.Size = new System.Drawing.Size(211, 210);
@@ -202,31 +189,20 @@
             this.btn_download.UseVisualStyleBackColor = false;
             this.btn_download.Click += new System.EventHandler(this.btn_download_Click);
             // 
-            // label3
+            // btn_loadEntities
             // 
-            this.label3.AutoSize = true;
-            this.label3.Location = new System.Drawing.Point(3, 29);
-            this.label3.Name = "label3";
-            this.label3.Size = new System.Drawing.Size(45, 13);
-            this.label3.TabIndex = 18;
-            this.label3.Text = "Solution";
+            this.btn_loadEntities.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Text;
+            this.btn_loadEntities.Image = ((System.Drawing.Image)(resources.GetObject("btn_loadEntities.Image")));
+            this.btn_loadEntities.ImageTransparentColor = System.Drawing.Color.Magenta;
+            this.btn_loadEntities.Name = "btn_loadEntities";
+            this.btn_loadEntities.Size = new System.Drawing.Size(78, 22);
+            this.btn_loadEntities.Text = "Load Entities";
+            this.btn_loadEntities.Click += new System.EventHandler(this.btn_loadEntities_Click);
             // 
-            // box_solutionSelect
-            // 
-            this.box_solutionSelect.Enabled = false;
-            this.box_solutionSelect.FormattingEnabled = true;
-            this.box_solutionSelect.Location = new System.Drawing.Point(6, 45);
-            this.box_solutionSelect.Name = "box_solutionSelect";
-            this.box_solutionSelect.Size = new System.Drawing.Size(212, 21);
-            this.box_solutionSelect.TabIndex = 19;
-            this.box_solutionSelect.SelectedIndexChanged += new System.EventHandler(this.box_solutionSelect_SelectedIndexChanged);
-            // 
-            // PaginatedReportGeneratorControl
+            // PaginatedReportBuilderControl
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.Controls.Add(this.box_solutionSelect);
-            this.Controls.Add(this.label3);
             this.Controls.Add(this.btn_download);
             this.Controls.Add(this.pictureBox1);
             this.Controls.Add(this.label5);
@@ -239,7 +215,7 @@
             this.Controls.Add(this.lst_forms);
             this.Controls.Add(this.box_entitySelect);
             this.Controls.Add(this.toolStripMenu);
-            this.Name = "PaginatedReportGeneratorControl";
+            this.Name = "PaginatedReportBuilderControl";
             this.Size = new System.Drawing.Size(1314, 757);
             this.Load += new System.EventHandler(this.PaginatedReportGeneratorControl_Load);
             this.toolStripMenu.ResumeLayout(false);
@@ -265,8 +241,6 @@
         private System.Windows.Forms.Label label5;
         private System.Windows.Forms.PictureBox pictureBox1;
         private System.Windows.Forms.Button btn_download;
-        private System.Windows.Forms.Label label3;
-        private System.Windows.Forms.ComboBox box_solutionSelect;
-        private System.Windows.Forms.ToolStripButton btn_loadSolutions;
+        private System.Windows.Forms.ToolStripButton btn_loadEntities;
     }
 }

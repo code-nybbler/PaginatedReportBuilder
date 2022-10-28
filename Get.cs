@@ -8,7 +8,6 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
-using System.ServiceModel;
 using System.Windows;
 using System.Xml.Linq;
 
@@ -16,6 +15,27 @@ namespace PaginatedReportBuilder
 {
     public partial class Get
     {
+        public static List<EntityMetadata> GetEntities(IOrganizationService Service)
+        {
+            List<EntityMetadata> entities = null;
+            try
+            {
+                var request = new RetrieveAllEntitiesRequest
+                {
+                    EntityFilters = EntityFilters.All
+                };
+
+                var response = (RetrieveAllEntitiesResponse)Service.Execute(request);
+                entities = response.EntityMetadata.ToList();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message);
+            }
+
+            return entities;
+        }
+
         public static List<Entity> GetEntityForms(int entityTypeCode, IOrganizationService Service)
         {
             var query = new QueryExpression("systemform");
@@ -62,70 +82,6 @@ namespace PaginatedReportBuilder
 
             var uriString = organizationResponse.Detail.Endpoints[EndpointType.WebApplication];
             return new Uri(uriString);
-        }
-
-        public static List<EntityMetadata> GetSolutionEntities(string SolutionUniqueName, IOrganizationService Service)
-        {
-            List <EntityMetadata> entities = null;
-            try
-            {
-                // get solution components for solution unique name
-                QueryExpression componentsQuery = new QueryExpression
-                {
-                    EntityName = "solutioncomponent",
-                    ColumnSet = new ColumnSet("objectid"),
-                    Criteria = new FilterExpression(),
-                };
-                LinkEntity solutionLink = new LinkEntity("solutioncomponent", "solution", "solutionid", "solutionid", JoinOperator.Inner);
-                solutionLink.LinkCriteria = new FilterExpression();
-                solutionLink.LinkCriteria.AddCondition(new ConditionExpression("uniquename", ConditionOperator.Equal, SolutionUniqueName));
-                componentsQuery.LinkEntities.Add(solutionLink);
-                componentsQuery.Criteria.AddCondition(new ConditionExpression("componenttype", ConditionOperator.Equal, 1));
-                EntityCollection ComponentsResult = Service.RetrieveMultiple(componentsQuery);
-                //Get all entities
-                RetrieveAllEntitiesRequest AllEntitiesrequest = new RetrieveAllEntitiesRequest()
-                {
-                    EntityFilters = EntityFilters.Entity | EntityFilters.Attributes,
-                    RetrieveAsIfPublished = true
-                };
-                RetrieveAllEntitiesResponse AllEntitiesresponse = (RetrieveAllEntitiesResponse)Service.Execute(AllEntitiesrequest);
-                
-                //Join entities Id and solution Components Id 
-                entities = AllEntitiesresponse.EntityMetadata.Join(ComponentsResult.Entities.Select(x => x.Attributes["objectid"]), x => x.MetadataId, y => y, (x, y) => x).ToList();
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show(ex.Message);
-            }
-            
-            return entities;
-        }
-
-        public static EntityCollection GetSolutions(IOrganizationService Service)
-        {
-            QueryExpression query = new QueryExpression
-            {
-                EntityName = "solution",
-                ColumnSet = new ColumnSet(true),
-                Criteria = {
-                    Conditions = {
-                        new ConditionExpression("ismanaged", ConditionOperator.Equal, false)
-                    },
-                }
-            };
-
-            RetrieveMultipleRequest request = new RetrieveMultipleRequest();
-            request.Query = query;
-            try
-            {
-                RetrieveMultipleResponse response = (RetrieveMultipleResponse)Service.Execute(request);
-                EntityCollection results = response.EntityCollection;
-                return results;
-            }
-            catch (FaultException<OrganizationServiceFault> ex)
-            {
-                throw new Exception(ex.Message);
-            }
         }
 
         public static ViewMeta GetViewFields(string viewId, IOrganizationService Service)

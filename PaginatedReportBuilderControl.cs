@@ -71,22 +71,12 @@ namespace PaginatedReportBuilder
             }
         }
 
-        private void btn_loadSolutions_Click(object sender, EventArgs e)
-        {
-            box_solutionSelect.Items.Clear();
-
-            LoadSolutions();
-        }
-
-        private void box_solutionSelect_SelectedIndexChanged(object sender, EventArgs e)
+        private void btn_loadEntities_Click(object sender, EventArgs e)
         {
             box_entitySelect.Items.Clear();
             lst_forms.Items.Clear();
 
-            if (box_solutionSelect.SelectedIndex != -1)
-            {
-                LoadEntities(box_solutionSelect.SelectedItem.ToString());
-            }
+            LoadEntities();
         }
 
         private void box_entitySelect_SelectedIndexChanged(object sender, EventArgs e)
@@ -163,7 +153,7 @@ namespace PaginatedReportBuilder
             
         }
 
-        private void LoadEntities(string solution)
+        private void LoadEntities()
         {
             WorkAsync(new WorkAsyncInfo
             {
@@ -171,7 +161,7 @@ namespace PaginatedReportBuilder
                 Work = (w, e2) =>
                 {
                     // This code is executed in another thread
-                    entities = Get.GetSolutionEntities(solution, Service);
+                    entities = Get.GetEntities(Service);
 
                     w.ReportProgress(-1, "Entities loaded.");
                     e2.Result = 1;
@@ -231,44 +221,8 @@ namespace PaginatedReportBuilder
             });
         }
 
-        private void LoadSolutions()
-        {
-            WorkAsync(new WorkAsyncInfo
-            {
-                Message = "Retrieving solutions...",
-                Work = (w, e) =>
-                {
-                    // This code is executed in another thread
-                    solutions = Get.GetSolutions(Service);
-
-                    w.ReportProgress(-1, "Solutions loaded.");
-                    e.Result = 1;
-                },
-                ProgressChanged = e =>
-                {
-                    SetWorkingMessage(e.UserState.ToString());
-                },
-                PostWorkCallBack = e =>
-                {
-                    // This code is executed in the main thread
-                    foreach (var entity in solutions.Entities)
-                    {
-                        box_solutionSelect.Items.Add(entity["friendlyname"]);
-                    }
-
-                    box_solutionSelect.Enabled = true;
-                },
-                AsyncArgument = null,
-                // Progress information panel size
-                MessageWidth = 340,
-                MessageHeight = 150
-            });
-        }
-
-
         private void DisableInputs()
         {
-            box_solutionSelect.Enabled = false;
             box_entitySelect.Enabled = false;
             lst_forms.Enabled = false;
             btn_generate.Enabled = false;
@@ -277,7 +231,6 @@ namespace PaginatedReportBuilder
 
         private void EnableInputs()
         {
-            box_solutionSelect.Enabled = true;
             box_entitySelect.Enabled = true;
             lst_forms.Enabled = true;
             btn_generate.Enabled = true;
