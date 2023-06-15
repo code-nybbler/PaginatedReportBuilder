@@ -1,5 +1,4 @@
-﻿using McTools.Xrm.Connection;
-using Microsoft.Xrm.Sdk;
+﻿using Microsoft.Xrm.Sdk;
 using Microsoft.Xrm.Sdk.Messages;
 using Microsoft.Xrm.Sdk.Metadata;
 using System;
@@ -16,7 +15,6 @@ namespace PaginatedReportBuilder
     {
         private Settings mySettings;
         private List<Entity> forms;
-        private EntityCollection solutions;
         private List<EntityMetadata> entities;
         private string dataSource;
         private List<DatasetMeta> datasets;
@@ -58,17 +56,6 @@ namespace PaginatedReportBuilder
         {
             // Before leaving, save the settings
             SettingsManager.Instance.Save(GetType(), mySettings);
-        }
-
-        public override void UpdateConnection(IOrganizationService newService, ConnectionDetail detail, string actionName, object parameter)
-        {
-            base.UpdateConnection(newService, detail, actionName, parameter);
-
-            if (mySettings != null && detail != null)
-            {
-                mySettings.LastUsedOrganizationWebappUrl = detail.WebApplicationUrl;
-                LogInfo("Connection has changed to: {0}", detail.WebApplicationUrl);
-            }
         }
 
         private void btn_loadEntities_Click(object sender, EventArgs e)
